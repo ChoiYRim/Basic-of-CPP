@@ -1,4 +1,6 @@
 #include <iostream>
+#include <algorithm>
+#include <vector>
 
 class MyString
 {
@@ -93,6 +95,11 @@ void MyString::println() const { std::cout << string_content << '\n'; }
 MyString& MyString::assign(const char *str)
 {
     // str이 의도한 값이 아니라면?
+    if(!str)
+    {
+        std::cerr << "Error occured!\n";
+        exit(0);
+    }
     
     if(strlen(str) > memory_capacity)
         delete[] string_content;
@@ -108,6 +115,12 @@ MyString& MyString::assign(const char *str)
 
 MyString& MyString::assign(const MyString &str)
 {
+    if(!str.get_string())
+    {
+        std::cerr << "Error occured!\n";
+        exit(0);
+    }
+    
     if(str.length() > memory_capacity)
         delete[] string_content;
     
@@ -145,6 +158,12 @@ MyString& MyString::insert(int loc,const char* str)
 
 MyString& MyString::insert(int loc,const MyString& str)
 {
+    if(!str.get_string())
+    {
+        std::cerr << "Error occured!\n";
+        exit(0);
+    }
+    
     if(loc < 0 || loc > string_length)
         return *this;
     if(string_length+str.length() > memory_capacity)
@@ -174,6 +193,13 @@ MyString& MyString::insert(int loc,const MyString& str)
         return *this;
     }
     
+    if(str.string_length <= 0)
+    {
+        if(!string_content)
+            string_content = new char;
+        return *this;
+    }
+    
     for(int i = string_length-1; i >= loc; i++)
         string_content[i+str.length()] = string_content[i];
     for(int i = 0; i < str.length(); i++)
@@ -194,11 +220,13 @@ MyString& MyString::erase(int loc,int num)
     if(num < 0 || loc < 0 || loc > string_length)
         return *this;
     
-//    if(num > string_length)
-//    {
-//        string_length = 0;
-//
-//    }
+    if(num > string_length)
+    {
+        string_length = memory_capacity = 0;
+        delete [] string_content;
+        string_content = nullptr;
+        return *this;
+    }
     
     for(int i = loc+num; i < string_length; i++)
         string_content[i-num] = string_content[i];
@@ -209,21 +237,55 @@ MyString& MyString::erase(int loc,int num)
 
 int MyString::find(int find_from,MyString& str) const
 {
-    int i,j;
+/* 아래의 방식은 굉장히 naive한 방식 */
+//    int i,j;
+//
+//    if(string_length <= 0)
+//        return -1;
+//
+//    for(i = find_from; i <= string_length-str.length(); i++)
+//    {
+//        for(j = 0; j < str.length(); j++)
+//        {
+//            if(string_content[i+j] != str.get_string()[j])
+//                break;
+//        }
+//
+//        if(!(j-str.length()))
+//            return i;
+//    }
     
-    if(string_length <= 0)
+    // Boyer-Moore Algorithm
+    
+    int pos_idx,pos_txt,len;
+    char* pattern = str.get_string();
+    std::vector<int> skip(128,str.length());
+    
+    if(string_length <= 0 || find_from < 0)
+        return -1;
+    if(!pattern || str.length() <= 0)
         return -1;
     
-    for(i = find_from; i <= string_length-str.length(); i++)
+    len = str.length();
+    for(int i = 0; i < len; i++)
     {
-        for(j = 0; j < str.length(); j++)
+        char ch = pattern[i];
+        skip[ch] = std::min(skip[ch],len-i-1);
+    }
+    
+    pos_txt = len-1;
+    while(pos_txt < string_length)
+    {
+        pos_idx = len-1;
+        while(string_content[pos_txt] == pattern[pos_idx])
         {
-            if(string_content[i+j] != str.get_string()[j])
-                break;
+            if(!pos_idx)
+                return pos_txt;
+            pos_txt--;
+            pos_idx--;
         }
         
-        if(!(j-str.length()))
-            return i;
+        pos_txt += skip[string_content[pos_txt]];
     }
     
     return -1;
@@ -248,13 +310,17 @@ int MyString::compare(const MyString& str) const
 
 int main()
 {
-    MyString str1("very very long string");
-    MyString str2("<some string inserted between>");
+    MyString str1("very very very long string");
+    MyString str2("very long");
     str1.reserve(32);
     
     std::cout << "Capacity : " << str1.capacity() << '\n';
     std::cout << "String length : " << str1.length() << '\n';
     str1.println();
+    
+//    str1.erase(0,100);
+//    str1.insert(0,"");
+//    str1.println();
     
 //    str1.insert(5,str2);
 //    str1.println();
@@ -263,8 +329,8 @@ int main()
 //    std::cout << "String length : " << str1.length() << '\n';
 //    str1.println();
     
-    std::cout << "Location of second <very> in the string : "
-    << str1.find(str1.find(0,"very")+1,"very") << '\n';
+    std::cout << "Location of 'str2' in the string : "
+    << str1.find(0,str2) << '\n';
     
     std::cout << "compare str1 with str2 : " << str1.compare(str2) << '\n';
     return 0;

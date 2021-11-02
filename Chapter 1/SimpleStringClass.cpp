@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <cstring>
 
 class MyString
 {
@@ -11,6 +12,8 @@ private:
     
 public:
     MyString(char c);
+    
+    explicit MyString(int capacity);
     
     MyString(const char* str);
     
@@ -49,6 +52,30 @@ public:
     int find(int find_from,char c) const;
     
     int compare(const MyString& str) const;
+    
+    bool operator==(MyString& str);
+    
+    bool operator!=(MyString& str);
+    
+    bool operator=(const MyString& str);
+    
+    bool operator>(const MyString& str);
+    
+    bool operator<(const MyString& str);
+    
+    bool operator>=(const MyString& str);
+    
+    bool operator<=(const MyString& str);
+    
+    MyString operator+(const MyString& str);
+    
+    void pop_back();
+    
+    char& operator[](const int index);
+    
+    friend std::ostream& operator<<(std::ostream& os,const MyString& str); // 불완전
+    
+    friend std::istream& operator>>(std::istream& is,const MyString& str); // 불완전
 };
 
 MyString::MyString(char c)
@@ -56,6 +83,13 @@ MyString::MyString(char c)
     string_content = new char[1];
     string_content[0] = c;
     memory_capacity = 1;
+}
+
+MyString::MyString(int capacity)
+{
+    string_content = new char[capacity];
+    string_length = 0;
+    memory_capacity = capacity;
 }
 
 MyString::MyString(const char* str)
@@ -159,10 +193,7 @@ MyString& MyString::insert(int loc,const char* str)
 MyString& MyString::insert(int loc,const MyString& str)
 {
     if(!str.get_string())
-    {
-        std::cerr << "Error occured!\n";
-        exit(0);
-    }
+        return *this;
     
     if(loc < 0 || loc > string_length)
         return *this;
@@ -237,7 +268,9 @@ MyString& MyString::erase(int loc,int num)
 
 int MyString::find(int find_from,MyString& str) const
 {
-/* 아래의 방식은 굉장히 naive한 방식 */
+
+    /* 아래의 방식은 굉장히 naive한 방식 */
+
 //    int i,j;
 //
 //    if(string_length <= 0)
@@ -308,26 +341,142 @@ int MyString::compare(const MyString& str) const
     return strcmp(string_content,str.get_string());
 }
 
+bool MyString::operator==(MyString& str)
+{
+    return !compare(str);
+}
+
+bool MyString::operator!=(MyString& str)
+{
+    return (compare(str) ? true : false);
+}
+
+bool MyString::operator=(const MyString& str)
+{
+    if(str.capacity() <= 0)
+        return false;
+    if(string_content != nullptr)
+        delete [] string_content;
+    
+    string_length = str.length();
+    memory_capacity = string_length;
+    string_content = new char[memory_capacity];
+    strcpy(string_content, str.get_string());
+    return true;
+}
+
+bool MyString::operator>(const MyString& str)
+{
+    if(compare(str) < 0)
+        return true;
+    return false;
+}
+
+bool MyString::operator<(const MyString& str)
+{
+    if(compare(str) > 0)
+        return true;
+    return false;
+}
+
+bool MyString::operator>=(const MyString& str)
+{
+    if(compare(str) <= 0)
+        return true;
+    return false;
+}
+
+bool MyString::operator<=(const MyString& str)
+{
+    if(compare(str) >= 0)
+        return true;
+    return false;
+}
+
+MyString MyString::operator+(const MyString& str)
+{
+    MyString tmp(strcat(string_content,str.get_string()));
+    return tmp;
+}
+
+void MyString::pop_back()
+{
+    if(memory_capacity <= 0 || string_length <= 0)
+        return;
+    
+    char* tmp = new char[string_length-1];
+    for(int i = 0; i < string_length-1; i++)
+        tmp[i] = string_content[i];
+    
+    delete[] string_content;
+    
+    string_content = new char[string_length-1];
+    strcpy(string_content,tmp);
+    memory_capacity = string_length-1;
+    string_length -= 1;
+}
+
+MyString operator+(const MyString& str1,const MyString& str2)
+{
+    MyString tmp(str1);
+    return tmp.operator+(str2);
+}
+
+char& MyString::operator[](const int index)
+{
+    if(memory_capacity >= index)
+        return string_content[index];
+    std::cerr << "Invalid index referred...\n";
+    exit(1);
+}
+
+std::ostream& operator<<(std::ostream& os,const MyString& str)
+{
+    os << str.string_content;
+    os << "\n";
+    return os;
+}
+
+std::istream& operator>>(std::istream& is,const MyString& str)
+{
+    /* 미완성 */
+    
+    return is;
+}
+
 int main()
 {
     MyString str1("very very very long string");
     MyString str2("very long");
     str1.reserve(32);
     
+    if(str1 == str2)
+        std::cout << "str1 and str2 is same" << '\n';
+    else
+        std::cout << "str1 and str2 is not same" << '\n';
+    
+    if(str1 != str2)
+        std::cout << "str1 and str2 is not same" << '\n';
+    else
+        std::cout << "str1 and str2 is same" << '\n';
+    
     std::cout << "Capacity : " << str1.capacity() << '\n';
     std::cout << "String length : " << str1.length() << '\n';
     str1.println();
+    std::cout << str1[1] << '\n';
     
-//    str1.erase(0,100);
-//    str1.insert(0,"");
-//    str1.println();
+    str1 = str2;
+    //str1.println();
     
-//    str1.insert(5,str2);
-//    str1.println();
-//
-//    std::cout << "Capacity : " << str1.capacity() << '\n';
-//    std::cout << "String length : " << str1.length() << '\n';
-//    str1.println();
+    str1 = str1+" "+str2;
+    //str1.println();
+    
+    //std::cin >> str1;
+    //std::cout << str1;
+    
+    str1.pop_back();
+    //str1.println();
+    std::cout << str1;
     
     std::cout << "Location of 'str2' in the string : "
     << str1.find(0,str2) << '\n';

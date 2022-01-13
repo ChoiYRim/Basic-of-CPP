@@ -42,7 +42,7 @@ public:
         {
             if(!bits[*it % bits.size()])
             {
-                std::cout << key << " : 사용할 수 없는 이메일입니다." << std::endl;
+                std::cout << key << " : 사용할 수 있는 이메일입니다." << std::endl;
                 return false;
             }
         }

@@ -10,12 +10,18 @@ std::vector<std::string> parseString(const std::string& str)
     
     while((pos = str.find(delimiter,idx)) != std::string::npos)
     {
+        if(pos+1 != std::string::npos && s[idx] == delimiter)
+        {
+            idx++;
+            continue;
+        }
+        
         std::string tmp = str.substr(idx,pos-idx);
         ret.push_back(tmp);
         idx = pos+1;
     }
     
-    ret.push_back(str.substr(idx,pos-idx));
+    ret.push_back(str.substr(idx,pos));
     return ret;
 }
 

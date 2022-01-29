@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <string_view>
-#include <set>
 
 class CompareDocuments
 {
@@ -38,54 +38,57 @@ public:
         return Size;
     }
     
-    std::string memoization(size_t idx1,size_t idx2,
-                            const std::string& str1,
-                            const std::string& str2,
-                            std::string cur)
+    int memoization(size_t idx1,size_t idx2,
+                     const std::string& str1,
+                     const std::string& str2)
     {
-        auto it = set.find(cur);
-        if(it != set.end())
-            return it->data();
+        if(dp[idx1][idx2] != 0)
+            return dp[idx1][idx2];
         if(idx1 >= str1.length() || idx2 >= str2.length())
-            return "";
+            return 0;
         
         if(str1[idx1] != str2[idx2])
-        {
-            auto result1 = memoization(idx1+1,idx2,str1,str2,cur);
-            auto result2 = memoization(idx1,idx2+1,str1,str2,cur);
-            
-            if(result1.length() > result2.length())
-            {
-                set.insert(result1);
-                return result1;
-            }
-            
-            set.insert(result2);
-            return result2;
-        }
-        
-        auto result = str1[idx1] + memoization(idx1+1,idx2+1,str1,str2,cur);
-        set.insert(result);
-        
-        return result;
+            dp[idx1][idx2] = std::max(memoization(idx1+1,idx2,str1,str2),memoization(idx1,idx2+1,str1,str2));
+        else
+            dp[idx1][idx2] = memoization(idx1+1,idx2+1,str1,str2)+1;
+        return dp[idx1][idx2];
     }
     
     std::string lcsAlgorithm(void)
     {
-        std::string result = "";
         std::string strFromFile1,strFromFile2;
-        size_t sizeOfFile1 = 0,sizeOfFile2 = 0;
+        size_t len1 = 0,len2 = 0;
         
-        sizeOfFile1 = getFileSize(prev);
-        sizeOfFile2 = getFileSize(curr);
+        len1 = getFileSize(prev);
+        len2 = getFileSize(curr);
         
-        strFromFile1.resize(sizeOfFile1);
-        strFromFile2.resize(sizeOfFile2);
+        strFromFile1.resize(len1);
+        strFromFile2.resize(len2);
         
-        prev.read(&strFromFile1[0],sizeOfFile1);
-        curr.read(&strFromFile2[0],sizeOfFile2);
+        prev.read(&strFromFile1[0],len1);
+        curr.read(&strFromFile2[0],len2);
         
-        result = set.find(memoization(0,0,strFromFile1,strFromFile2,""))->data();
+        dp.clear();
+        dp = std::vector<std::vector<int>>(len1+1,std::vector<int>(len2+1,0));
+        int idx = memoization(0,0,strFromFile1,strFromFile2);
+        
+        std::string result(idx+1,0);
+        
+        idx = 0;
+        len1 = len2 = 0;
+        while(dp[len1][len2] != 0)
+        {
+            if(dp[len1][len2] == dp[len1+1][len2])
+                len1++;
+            else if(dp[len1][len2] == dp[len1][len2+1])
+                len2++;
+            else
+            {
+                result[idx] = strFromFile1[len1];
+                idx++; len1++; len2++;
+            }
+        }
+        
         return result;
     }
 
@@ -102,12 +105,12 @@ public:
     
 private:
     std::fstream prev,curr;
-    std::set<std::string> set;
+    std::vector<std::vector<int>> dp;
 };
 
 int main(int argc,char* argv[])
 {
-    CompareDocuments docs("path1","path2");
+    CompareDocuments docs("version1.txt","version2.txt");
     
     std::cout << docs.lcsAlgorithm() << std::endl;
     return 0;

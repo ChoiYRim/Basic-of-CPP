@@ -3,7 +3,7 @@
 #include <fstream>
 #include <string>
 #include <string_view>
-#include <map>
+#include <set>
 
 class CompareDocuments
 {
@@ -40,31 +40,32 @@ public:
     
     std::string memoization(size_t idx1,size_t idx2,
                             const std::string& str1,
-                            const std::string& str2)
+                            const std::string& str2,
+                            std::string cur)
     {
-        auto it = map.find({idx1,idx2});
-        if(it != map.end())
-            return it->second;
+        auto it = set.find(cur);
+        if(it != set.end())
+            return it->data();
         if(idx1 >= str1.length() || idx2 >= str2.length())
             return "";
         
         if(str1[idx1] != str2[idx2])
         {
-            auto result1 = memoization(idx1+1,idx2,str1,str2);
-            auto result2 = memoization(idx1,idx2+1,str1,str2);
+            auto result1 = memoization(idx1+1,idx2,str1,str2,cur);
+            auto result2 = memoization(idx1,idx2+1,str1,str2,cur);
             
             if(result1.length() > result2.length())
             {
-                map.insert({{idx1,idx2},result1});
+                set.insert(result1);
                 return result1;
             }
             
-            map.insert({{idx1,idx2},result2});
+            set.insert(result2);
             return result2;
         }
         
-        auto result = str1[idx1] + memoization(idx1+1,idx2+1,str1,str2);
-        map.insert({{idx1,idx2},result});
+        auto result = str1[idx1] + memoization(idx1+1,idx2+1,str1,str2,cur);
+        set.insert(result);
         
         return result;
     }
@@ -84,9 +85,7 @@ public:
         prev.read(&strFromFile1[0],sizeOfFile1);
         curr.read(&strFromFile2[0],sizeOfFile2);
         
-        memoization(0,0,strFromFile1,strFromFile2);
-        
-        result = map.find({0,0})->second;
+        result = set.find(memoization(0,0,strFromFile1,strFromFile2,""))->data();
         return result;
     }
 
@@ -103,12 +102,12 @@ public:
     
 private:
     std::fstream prev,curr;
-    std::map<std::pair<int,int>,std::string> map;
+    std::set<std::string> set;
 };
 
 int main(int argc,char* argv[])
 {
-    CompareDocuments docs("filepath1","filepath2");
+    CompareDocuments docs("path1","path2");
     
     std::cout << docs.lcsAlgorithm() << std::endl;
     return 0;

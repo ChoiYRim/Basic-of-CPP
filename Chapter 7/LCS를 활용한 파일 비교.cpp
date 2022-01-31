@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <string_view>
@@ -54,7 +55,26 @@ public:
         return dp[idx1][idx2];
     }
     
-    std::string lcsAlgorithm(void)
+    void compareOuputStrings(const std::string& stringFromCurr,const std::string& lcs)
+    {
+        std::string line_first,line_second;
+        std::istringstream input(stringFromCurr),comp(lcs);
+        
+        std::getline(comp,line_second);
+        while(std::getline(input,line_first))
+        {
+            if(line_first != line_second)
+            {
+                outputs.push_back({false,line_first});
+                continue;
+            }
+            
+            outputs.push_back({true,line_first});
+            std::getline(comp,line_second);
+        }
+    }
+    
+    void lcsAlgorithm(void)
     {
         std::string strFromFile1,strFromFile2;
         size_t len1 = 0,len2 = 0;
@@ -89,7 +109,7 @@ public:
             }
         }
         
-        return result;
+        compareOuputStrings(strFromFile2,result);
     }
 
     void printCommonString(const std::string& str)
@@ -103,15 +123,33 @@ public:
         curr.close();
     }
     
+    friend std::ostream& operator<<(std::ostream& os,const CompareDocuments& docs);
+    
 private:
     std::fstream prev,curr;
     std::vector<std::vector<int>> dp;
+    std::vector<std::pair<bool,std::string>> outputs;
 };
+
+std::ostream& operator<<(std::ostream& os,const CompareDocuments& docs)
+{
+    for(auto& output : docs.outputs)
+    {
+        if(output.first != 0)
+            os << "[ " << output.second << " ]\n";
+        else
+            os << output.second << "\n";
+    }
+    
+    return os;
+}
 
 int main(int argc,char* argv[])
 {
     CompareDocuments docs("version1.txt","version2.txt");
     
-    std::cout << docs.lcsAlgorithm() << std::endl;
+    docs.lcsAlgorithm();
+    std::cout << docs << std::endl;
     return 0;
 }
+

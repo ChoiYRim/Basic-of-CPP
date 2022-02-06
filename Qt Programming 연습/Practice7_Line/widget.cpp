@@ -20,10 +20,10 @@ Widget::Widget(QWidget *parent) : QWidget(parent)
         edit[i]->setGeometry(10,ypos,200,40);
         ypos += 50;
     }
-    edit[1]->setEchoMode(QLineEdit::Normal);
-    edit[2]->setEchoMode(QLineEdit::NoEcho);
-    edit[3]->setEchoMode(QLineEdit::Password);
-    edit[4]->setEchoMode(QLineEdit::PasswordEchoOnEdit);
+    edit[1]->setEchoMode(QLineEdit::Normal); // 디폴트
+    edit[2]->setEchoMode(QLineEdit::NoEcho); // 텍스트가 안보이며 커서의 위치도 안보임
+    edit[3]->setEchoMode(QLineEdit::Password); // 텍스트가 *로 표시됨
+    edit[4]->setEchoMode(QLineEdit::PasswordEchoOnEdit); // 텍스트가 변경되면 디폴트와 동일하지만 포커스가 이동하면 *로 표시됨
 }
 
 void Widget::textChanged(QString str)

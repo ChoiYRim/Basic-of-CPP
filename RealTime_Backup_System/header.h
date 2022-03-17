@@ -17,10 +17,17 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 const size_t kbuffer_length = 1024;
+const int option_am = 1<<1;
+const int option_an = 1<<2;
+const int option_at = 1<<3;
+const int option_ad = 1<<4;
+const int option_ra = 1<<5;
+const int option_rn = 1<<6;
 
 enum
 {
@@ -44,6 +51,7 @@ class Program
 		void start();
 		
 		int add(const std::vector<std::string>& cmds);
+		bool get_add_options(int&,int&,int&,int&,std::filesystem::path&,const std::vector<std::string>&);
 
 		int remove(const std::vector<std::string>& cmds);
 
@@ -55,12 +63,13 @@ class Program
 
 		void general_command(const std::vector<std::string>& cmds);
 
-		virtual ~Program() = default;
+		virtual ~Program();
 
 	private:
 		std::vector<std::string> split_commands(const std::string& input);
 		bool spawn_worker(int types,const std::vector<std::string>& cmds);
-		std::unordered_map<std::string,std::unique_ptr<std::thread>> _table;
+		void erase_worker(const std::string& file_name);
+		std::unordered_map<std::string,pthread_t> _table;
 };
 
 class Worker

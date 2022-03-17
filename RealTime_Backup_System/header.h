@@ -2,6 +2,7 @@
 #define _REALTIME_BACKUP_SYSTEM_
 
 #include <unordered_map>
+#include <string_view>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -58,22 +59,27 @@ class Program
 
 	private:
 		std::vector<std::string> split_commands(const std::string& input);
-		bool check_command_validity(int types,const std::vector<std::string>& cmds);
-		std::unordered_map<std::string,Worker> _table;
+		bool spawn_worker(int types,const std::vector<std::string>& cmds);
+		std::unordered_map<std::string,std::unique_ptr<std::thread>> _table;
 };
 
 class Worker
 {
 	public:
-		Worker() : _absolute_path(""), _period(10), _option(0), _maximum_file_numbers(100) { }
+		Worker() : _period(10), _option(0), _maximum_file_numbers(100) { }
+
+		Worker(std::filesystem::path& p,int period,int opt,int mfn,int st,std::string_view cmd);
+
+		void operator()(); 
 
 		virtual ~Worker() = default;
 
 	private:
-		std::string _absolute_path;
+		std::filesystem::path _absolute_path;
 		int _period;
 		int _option; // bit masking
 		int _maximum_file_numbers;
+		int _time;
 };
 
 class Logger

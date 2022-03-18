@@ -3,6 +3,7 @@
 void Program::start()
 {
 	system("clear");
+	make_backup_directory();
 	while(true)
 	{
 		std::string input = "";
@@ -16,13 +17,7 @@ void Program::start()
 
 		std::string command = commands[0];
 
-		if(command == "exit")
-		{
-			// 현재 작동 중인 스레드 종료
-			for(auto& ele : _table) erase_worker(ele.first);
-			_table.clear();
-			break;
-		}
+		if(command == "exit") break;
 		else if(command == "add") add(commands);
 		else if(command == "remove") remove(commands);
 		else if(command == "compare") compare(commands);
@@ -31,6 +26,13 @@ void Program::start()
 		else if(command == "clear") system("clear");
 		else general_command(commands);
 	}
+}
+
+void Program::make_backup_directory()
+{
+	if(std::filesystem::exists("BACKUP")) // 프로그램이 실행되는 위치에 디렉토리 생성
+		return;
+	std::filesystem::create_directory("BACKUP");	
 }
 
 std::vector<std::string> Program::split_commands(const std::string& input)
@@ -67,22 +69,19 @@ bool Program::spawn_worker(int types, const std::vector<std::string>& cmds)
 		if(!get_add_options(period, option, maximum_file_numbers, store_time, path, cmds)) return false;
 
 		// if option d
-
-		// else
+		if(option & option_ad)
+			return add_directory(path,period,option,maximum_file_numbers,store_time);
+		
+		if(_table.find(path.string()) != _table.end())
+			return true;
+	
+		if(path.string().length() > 255) return false;
 		std::thread thread(Worker(path, period, option, maximum_file_numbers, store_time,"add"));
 		_table[path.string()] = thread.native_handle();
+		_info[path.string()] = Info{period,option,maximum_file_numbers,store_time};
 		thread.detach();
 	}
-	else if(types == REMOVE)
-	{
-	}
-	else if(types == COMPARE)
-	{
-	}
 	else if(types == RECOVER)
-	{
-	}
-	else if(types == LIST)
 	{
 	}
 
@@ -99,10 +98,7 @@ void Program::erase_worker(const std::string& file_name)
 int Program::add(const std::vector<std::string>& cmds)
 {
 	if(!spawn_worker(ADD,cmds))
-	{
-		std::cerr << "command is invalid...\n";
 		return 1;
-	}
 	return 0;
 }
 
@@ -115,14 +111,35 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 
 		path = std::filesystem::path(cmds[2]);
 		if(std::filesystem::exists(path) != true)
+		{
+			std::cerr << "file does not exist..." << std::endl;
 			return false;
+		}
 		if(std::filesystem::is_directory(path) != true)
+		{
+			std::cerr << "file is not a directory..." << std::endl;
 			return false;
+		}
+		if(path.string() == ".")
+			path = std::filesystem::current_path();
+		else if(path.string() == "..")
+			path = path.parent_path();
+
 		path = std::filesystem::absolute(path);
 		for(auto i = 0; i < cmds[3].length(); i++)
+		{
 			if(cmds[3][i] < '0' || cmds[3][i] > '9')
+			{
+				std::cerr << "period must be an integer over 0..." << std::endl;
 				return false;
+			}
+		}
 		period = stoi(cmds[3]);
+		if(period <= 0) 
+		{
+			std::cerr << "period must be over 0..." << std::endl;
+			return false;
+		}
 
 		// options
 		option |= option_ad;
@@ -132,7 +149,10 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 			if(cmd[0] == '-') // option flag
 			{
 				if(cmd[1] != 'm' && cmd[1] != 'n' && cmd[1] != 't') // wrong flag
+				{
+					std::cerr << "invalid flag..." << std::endl;
 					return false;
+				}
 				if(cmd[1] == 'm')
 					option |= option_am;
 				else if(cmd[1] == 'n')
@@ -142,6 +162,8 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 					for(auto j = 0; j < cmds[i+1].length(); j++)
 						if(cmds[i+1][j] < '0' || cmds[i+1][j] > '9') return false;
 					maximum_file_numbers = stoi(cmds[i+1]);
+					if(maximum_file_numbers <= 0)
+						return false;
 					i++;
 				}
 				else if(cmd[1] == 't')
@@ -164,11 +186,25 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 	path = std::filesystem::path(cmds[1]);
 	if(std::filesystem::exists(path) != true)
 		return false;
+	if(path.string() == ".")
+		path = std::filesystem::current_path();
+	else if(path.string() == "..")
+		path = path.parent_path();
 	path = std::filesystem::absolute(path);
 	for(auto i = 0; i < cmds[2].length(); i++)
+	{
 		if(cmds[2][i] < '0' || cmds[2][i] > '9')
+		{
+			std::cerr << "period must be an integer over 0..." << std::endl;
 			return false;
+		}
+	}
 	period = stoi(cmds[2]);
+	if(period <= 0)
+	{
+		std::cerr << "period must be over 0..." << std::endl;
+		return false;
+	}
 
 	// options
 	for(auto i = 3; i < cmds.size(); i++)
@@ -177,7 +213,10 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 		if(cmd[0] == '-') // option flag
 		{
 			if(cmd[1] != 'm' && cmd[1] != 'n' && cmd[1] != 't' && cmd[1] != 'd') // wrong
+			{
+				std::cerr << "invalid flag..." << std::endl;
 				return false;
+			}
 			if(cmd[1] == 'm')
 				option |= option_am;
 			else if(cmd[1] == 'n')
@@ -187,6 +226,8 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 				for(auto j = 0; j < cmds[i+1].length(); j++)
 					if(cmds[i+1][j] < '0' || cmds[i+1][j] > '9') return false;
 				maximum_file_numbers = stoi(cmds[i+1]);
+				if(maximum_file_numbers <= 0)
+					return false;
 				i++;
 			}
 			else if(cmd[1] == 't')
@@ -213,6 +254,38 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 	return true;
 }
 
+bool Program::add_directory(const std::filesystem::path& path,int& period,int& option,int& maximum_file_numbers,int& store_time)
+{
+	std::filesystem::directory_iterator dit(path);
+	while(dit != std::filesystem::end(dit))
+	{
+		const std::filesystem::directory_entry& entry = *dit;
+
+		if(std::filesystem::is_regular_file(entry))
+		{
+			if(_table.find(entry.path().string()) != _table.end())
+			{
+				dit++;
+				continue;
+			}
+				
+			if(entry.path().string().length() > 255) return false;
+			//std::cout << entry.path() << std::endl;
+			std::thread thread(Worker(entry.path(), period, option, maximum_file_numbers, store_time,"add"));
+			_table[entry.path().string()] = thread.native_handle();
+			_info[entry.path().string()] = Info{period,option,maximum_file_numbers,store_time};
+			thread.detach();
+		}
+		else if(std::filesystem::is_directory(entry))
+		{
+			if(!add_directory(entry, period, option, maximum_file_numbers, store_time)) return false;
+		}
+		dit++;
+	}
+
+	return true;
+}
+
 int Program::remove(const std::vector<std::string>& cmds)
 {
 	return 0;
@@ -228,8 +301,17 @@ int Program::recover(const std::vector<std::string>& cmds)
 	return 0;
 }
 
-int Program::list(const std::vector<std::string>& cmds)
+int Program::list(const std::vector<std::string>& cmds) noexcept
 {
+	int idx = 0;
+
+	for(const auto& ele : _table)
+	{
+		std::cout << "[" << std::setw(5) << std::right << idx++ << "] : ";
+		std::cout << std::setw(70) << std::left << ele.first << " ";
+		std::cout << _info[ele.first] << std::endl;
+	}
+
 	return 0;
 }
 
@@ -260,5 +342,28 @@ void Program::general_command(const std::vector<std::string>& cmds)
 
 Program::~Program()
 {
+	// 현재 작동 중인 스레드 종료
 	for(auto& ele : _table) erase_worker(ele.first);
+}
+
+std::ostream& operator<<(std::ostream& os,const Info& info)
+{
+	os << "[period : " << std::setw(3) << std::left << info._period << "] ";
+	if(info._option & option_am)
+		os << "[m option : true ] ";
+	else
+		os << "[m option : false] ";
+	if(info._option & option_an)
+		os << "[n option : " << std::setw(3) << std::left << info._maximum_file_numbers << "] ";
+	else
+		os << "[n option : " << std::setw(3) << std::left << "] ";
+	if(info._option & option_at)
+		os << "[t option : " << std::setw(4) << std::left << info._store_time << "] ";
+	else
+		os << "[t option : " << std::setw(4) << std::left << "] ";
+	if(info._option & option_ad)
+		os << "[d option : true ] ";
+	else
+		os << "[d option : false] ";
+	return os;
 }

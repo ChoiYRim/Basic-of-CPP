@@ -2,12 +2,108 @@
 
 Worker::Worker(const std::filesystem::path& p,int period,int opt,int mfn,int st,std::string_view cmd) : _absolute_path(p), _period(period), _option(opt), _maximum_file_numbers(mfn), _time(st) { }
 
+std::string get_relative_path(std::string abs_path)
+{
+	std::string result = "";
+	
+	while(abs_path.length() > 0 && abs_path.back() != '/')
+	{
+		result.push_back(abs_path.back());
+		abs_path.pop_back();
+	}
+
+	std::reverse(result.begin(),result.end());
+	return result;
+}
+
+bool comp(const std::string& s1, const std::string& s2)
+{
+	std::string sr1 = get_relative_path(s1);
+	std::string sr2 = get_relative_path(s2);
+
+	return sr1 > sr2;
+}
+
+void Worker::before_get_started(long long& start, const std::string& relative_path)
+{
+	int idx = 0;
+	std::filesystem::path backup(std::filesystem::current_path()/"BACKUP");
+	std::filesystem::directory_iterator dit(backup);
+	std::vector<std::string> v;
+
+	while(dit != std::filesystem::end(dit))
+	{
+		std::filesystem::directory_entry entry = *dit;
+		std::string entry_relative_path = get_relative_path(entry.path().string());
+
+		if(entry_relative_path.substr(0,relative_path.length()) != relative_path) 
+		{
+			dit++;
+			continue;
+		}
+		
+		v.push_back(entry.path().string());
+		dit++;
+	}
+
+	std::sort(v.begin(),v.end(),comp);
+	if(_option & option_an)
+	{
+		while(!v.empty() && idx < _maximum_file_numbers)
+		{
+			std::filesystem::remove(v.back());
+			v.pop_back();
+			idx++;
+		}
+	}
+	if(_option & option_at)
+	{
+		while(!v.empty())
+		{
+			std::string str_backup_time = get_relative_path(v.back()).substr(relative_path.length()+1);
+			long long backup_time = stoll(str_backup_time);
+			int year,month,day,hour,minute,second;
+
+			second = static_cast<int>(backup_time%100);
+			backup_time /= 100;
+
+			minute = static_cast<int>(backup_time%100);
+			minute *= 60;
+			backup_time /= 100;
+
+			hour = static_cast<int>(backup_time%100);
+			hour *= 60*60;
+			backup_time /= 100;
+
+			day = static_cast<int>(backup_time%100);
+			day *= 60*60*24;
+			backup_time /= 100;
+
+			month = static_cast<int>(backup_time%100);
+			month *= 60*60*24*30;
+			backup_time /= 100;
+
+			year = static_cast<int>(backup_time%100);
+			year *= 60*60*24*30*12;
+
+			backup_time = year+month+day+hour+minute+second;
+			if(start-backup_time > static_cast<long long>(_time))
+			{
+				std::filesystem::remove(v.back());
+				v.pop_back();
+				continue;
+			}
+			break;
+		}
+	}
+}
+
 void Worker::operator()() // backup thread 
 {
 	struct tm cur_tm;
 	time_t cur_time;
 	long long start;
-	std::string relative_path = get_relative_path();
+	std::string relative_path = get_relative_path(_absolute_path.string());
 	int cur_year,cur_month,cur_day,cur_hour,cur_minute,cur_second;
 	auto init_mtime = std::filesystem::last_write_time(_absolute_path);
 	std::filesystem::path backup(std::filesystem::current_path()/"BACKUP");
@@ -24,7 +120,7 @@ void Worker::operator()() // backup thread
 	cur_second = cur_tm.tm_sec;
 	start = get_time(cur_year,cur_month,cur_day,cur_hour,cur_minute,cur_second);
 
-	// TODO : 시작하기 전에 이전에 있는 파일들 정리 
+	before_get_started(start,relative_path); // 이미 백업된 파일들이 있다면 옵션에 맞춰서 수정
 	
 	while(true)
 	{
@@ -106,27 +202,14 @@ void Worker::operator()() // backup thread
 	}
 }
 
-std::string Worker::get_relative_path()
-{
-	std::string result = "";
-	std::string abs_path = _absolute_path.string();
-	
-	while(abs_path.length() > 0 && abs_path.back() != '/')
-	{
-		result.push_back(abs_path.back());
-		abs_path.pop_back();
-	}
-
-	std::reverse(result.begin(),result.end());
-	return result;
-}
 
 long long Worker::get_time(int& year,int& month,int& day,int& hour,int& minute,int& second)
 {
 	long long result = 0;
-
-	result += (year*60*60*24*12);
-	result += (month*60*60*24);
+	
+	year -= 2000;
+	result += (year*60*60*24*30*12);
+	result += (month*60*60*24*30); // 달은 그냥 30일로 고정
 	result += (day*60*60*24);
 	result += (hour*60*60);
 	result += (minute*60);

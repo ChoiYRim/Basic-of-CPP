@@ -268,8 +268,12 @@ bool Program::add_directory(const std::filesystem::path& path,int& period,int& o
 				dit++;
 				continue;
 			}
-				
-			if(entry.path().string().length() > 255) return false;
+			if(entry.path().string().length() > 255)
+			{
+				dit++;
+				continue;
+			}
+
 			//std::cout << entry.path() << std::endl;
 			std::thread thread(Worker(entry.path(), period, option, maximum_file_numbers, store_time,"add"));
 			_table[entry.path().string()] = thread.native_handle();
@@ -325,6 +329,12 @@ void Program::general_command(const std::vector<std::string>& cmds)
 	sprintf(args, "%s ", cmds[0].c_str());
 	for(int i = 1; i < cmd_len && cmds[i].length()+strlen(args) < kbuffer_length; i++)
 		sprintf(args, "%s %s ", args, cmds[i].c_str());
+
+	if(cmds[0] == "vi" || cmds[0] == "vim")
+	{
+		system(args);
+		return;
+	}
 
 	if((p = popen(args,"r")) == NULL)
 	{

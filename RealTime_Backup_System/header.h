@@ -93,9 +93,9 @@ class Worker
 
 		Worker(const std::filesystem::path& p,int period,int opt,int mfn,int st,std::string_view cmd);
 
-		void operator()(); 
+		void before_get_started(long long&,const std::string&);
 
-		std::string get_relative_path();
+		void operator()(); 
 
 		long long get_time(int&,int&,int&,int&,int&,int&);
 

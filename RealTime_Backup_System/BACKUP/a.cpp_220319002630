@@ -38,6 +38,6 @@ void print(const vector<string>& v)
 int main(int argc,char* argv[])
 {
     auto v = split(str.c_str());
-    //print(v);
+    print(v);
     return 0;
 }

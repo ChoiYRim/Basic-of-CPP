@@ -21,6 +21,7 @@
 #include <string.h>
 #include <signal.h>
 #include <pthread.h>
+#include <sys/stat.h>
 
 const int option_am = 1<<1;
 const int option_an = 1<<2;

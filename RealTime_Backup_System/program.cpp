@@ -81,9 +81,6 @@ bool Program::spawn_worker(int types, const std::vector<std::string>& cmds)
 		_info[path.string()] = Info{period,option,maximum_file_numbers,store_time};
 		thread.detach();
 	}
-	else if(types == RECOVER)
-	{
-	}
 
 	return true;
 }
@@ -186,10 +183,7 @@ bool Program::get_add_options(int& period,int& option,int& maximum_file_numbers,
 	path = std::filesystem::path(cmds[1]);
 	if(std::filesystem::exists(path) != true)
 		return false;
-	if(path.string() == ".")
-		path = std::filesystem::current_path();
-	else if(path.string() == "..")
-		path = path.parent_path();
+
 	path = std::filesystem::absolute(path);
 	for(auto i = 0; i < cmds[2].length(); i++)
 	{
@@ -292,11 +286,102 @@ bool Program::add_directory(const std::filesystem::path& path,int& period,int& o
 
 int Program::remove(const std::vector<std::string>& cmds)
 {
+	if(cmds.size() < 2)
+	{
+		std::cerr << "Usage : remove [FILE NAME or OPTION]" << std::endl;
+		return 1;
+	}
+
+	if(cmds[1] == "-a")
+	{
+		if(cmds.size() > 2)
+		{
+			std::cerr << "Usage : remove -a" << std::endl;
+			return 1;
+		}
+		
+		std::vector<std::string> delete_vector;
+
+		for(auto& ele : _table)
+			delete_vector.push_back(ele.first);
+		for(const auto& ele : delete_vector)
+		{
+			erase_worker(ele);
+			_table.erase(ele);
+			_info.erase(ele);
+		}
+
+		return 0;
+	}
+
+	if(cmds.size() > 2)
+	{
+		std::cerr << "Usage : remove [FILE NAME]" << std::endl;
+		return 1;
+	}
+
+	std::string file_name = cmds[1];
+	if(std::filesystem::exists(file_name) != true)
+	{
+		std::cerr << "file doesn't exist..." << std::endl;
+		return 1;
+	}
+
+	std::filesystem::path target = std::filesystem::absolute(file_name);
+	if(_table.find(target.string()) == _table.end() && _info.find(target.string()) == _info.end())
+	{
+		std::cerr << target.string() << " does not exist in backup list..." << std::endl;
+		return 1;
+	}
+	erase_worker(target.string());
+	_table.erase(target.string());
+	_info.erase(target.string());
 	return 0;
 }
 
 int Program::compare(const std::vector<std::string>& cmds)
 {
+	if(cmds.size() != 3)
+	{
+		std::cerr << "Usage : compare [FILE NAME1] [FILE NAME2]" << std::endl;
+		return 1;
+	}
+
+	std::string file_name1 = cmds[1];
+	std::string file_name2 = cmds[2];
+	if(std::filesystem::exists(file_name1) != true)
+	{
+		std::cerr << "the first file does not exist..." << std::endl;
+		return 1;
+	}
+	if(std::filesystem::exists(file_name2) != true)
+	{
+		std::cerr << "the seconds file does not exist..." << std::endl;
+		return 1;
+	}
+
+	std::filesystem::path target1 = std::filesystem::absolute(file_name1);
+	std::filesystem::path target2 = std::filesystem::absolute(file_name2);
+
+	auto file1_size = std::filesystem::file_size(target1);
+	auto file2_size = std::filesystem::file_size(target2);
+	struct stat file1_stat_buf,file2_stat_buf;
+
+	if(lstat(target1.string().c_str(),&file1_stat_buf) < 0)
+		return 1;
+	if(lstat(target2.string().c_str(),&file2_stat_buf) < 0)
+		return 1;
+
+	if(file1_size == file2_size && file1_stat_buf.st_mtime == file2_stat_buf.st_mtime)
+	{
+		std::cout << "two files are same..." << std::endl;
+		return 0;
+	}
+	
+	std::cout << "file1 : [size : " << file1_size << " bytes]" 
+		<< ", mtime : " << ctime(&file1_stat_buf.st_mtime);
+	std::cout << "file2 : [size : " << file2_size << " bytes]" 
+		<< ", mtime : " << ctime(&file2_stat_buf.st_mtime);
 	return 0;
 }
 
